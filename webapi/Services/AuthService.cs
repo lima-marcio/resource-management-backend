@@ -1,4 +1,8 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using webapi.Data;
 using webapi.Interfaces;
 using webapi.Models;
@@ -28,7 +32,7 @@ namespace webapi.Services
                 return null;
             }
 
-            var token = GenerateJwt(user);
+            var token = GenerateJwtToken(user, 2);
 
             // Salva a sessão no banco
             _context.UserSessions.Add(new UserSession
@@ -47,8 +51,28 @@ namespace webapi.Services
         {
             throw new NotImplementedException();
         }
+        private string GenerateJwtToken(IdentityUser user, int hours)
+        {
+            var claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim(ClaimTypes.Role, "Admin"), // Exemplo de regra
+                new Claim(ClaimTypes.Role, "Editor")
+            };
 
-        private string GenerateJwt(IdentityUser user) { /* Lógica de Claims e JWT aqui */ return "token_gerado"; }
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                expires: DateTime.UtcNow.AddHours(hours),
+                claims: claims,
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        //private string GenerateJwt(IdentityUser user) { /* Lógica de Claims e JWT aqui */ return "token_gerado"; }
         private async Task RevokeAllUserTokens(string email) { /* Lógica de update IsRevoked = true */ }
     }
 }
